@@ -1,0 +1,3 @@
+# Firefox + Playwright for Gradescope downloads
+playwright==1.55.0
+python-dotenv==1.0.1
