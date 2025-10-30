@@ -8,13 +8,16 @@ Open `ai_feedback.py` and add your API key at the top:
 API_KEY_HERE = "your-openai-api-key-here"
 ```
 
-### 2. Add one line to `utils.py`
-In your autograder's `utils.py`, modify the `save_results` function:
+### 2. Modify `utils.py`
+In your autograder's `utils.py`, find the `save_results` function and add these two lines:
 
 ```python
 def save_results(results: dict, autograder_dir: str):
-    from ai_feedback import enhance_results_with_ai_feedback  # Add this import
-    results = enhance_results_with_ai_feedback(results, autograder_dir)  # Add this line
+    # Add these two lines BEFORE saving the JSON:
+    from ai_feedback import enhance_results_with_ai_feedback
+    results = enhance_results_with_ai_feedback(results, autograder_dir)
+    
+    # This is the existing code that saves the JSON:
     with open(f'{autograder_dir}/results/results.json', 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=4)
 ```
@@ -24,7 +27,7 @@ def save_results(results: dict, autograder_dir: str):
 - Drop `ai_feedback.py` into your autograder folder (same directory as `utils.py`)
 - The AI will analyze student code and add feedback to each graded section
 - If the API fails, the autograder continues working normally
-- Feedback appears in the results JSON as `ai_feedback` fields
+- Feedback appears directly in Gradescope's output display
 
 ## Optional Configuration
 
