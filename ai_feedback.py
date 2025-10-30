@@ -1,3 +1,4 @@
+
 """
 AI-Powered Feedback Generator for Autograders
 Drop this file into your autograder folder and add one line to utils.py
@@ -236,35 +237,42 @@ def parse_feedback_response(feedback_text: str) -> Dict[str, Any]:
 
 
 def add_feedback_to_results(results: dict, feedback: Dict[str, Any]) -> dict:
-    """Add AI feedback to the results dictionary."""
+    """Add AI feedback to the results dictionary by appending to output fields."""
     
-    # Add overall feedback
+    # Add overall feedback to main output
     if 'overall' in feedback:
-        results['ai_feedback'] = feedback['overall']
+        current_output = results.get('output', '')
+        results['output'] = current_output + '\n\n=== AI FEEDBACK ===\n' + feedback['overall']
     
-    # Add test-specific feedback
+    # Add test-specific feedback to each test's output
     test_feedback = feedback.get('tests', {})
     for test in results.get('tests', []):
         test_name = test.get('name', '')
+        feedback_to_add = None
         
         # Try to find matching feedback (case-insensitive)
         for feedback_key, feedback_value in test_feedback.items():
             if test_name.lower() in feedback_key.lower() or feedback_key.lower() in test_name.lower():
-                test['ai_feedback'] = feedback_value
+                feedback_to_add = feedback_value
                 break
         
         # If no specific feedback found, generate generic based on score
-        if 'ai_feedback' not in test:
+        if not feedback_to_add:
             score = test.get('score', 0)
             max_score = test.get('max_score', 0)
             if max_score > 0:
                 percentage = (score / max_score) * 100
                 if percentage >= 90:
-                    test['ai_feedback'] = "Good implementation for this section."
+                    feedback_to_add = "Good implementation for this section."
                 elif percentage >= 50:
-                    test['ai_feedback'] = "Partial credit earned. Review the test requirements and error messages."
+                    feedback_to_add = "Partial credit earned. Review the test requirements and error messages."
                 else:
-                    test['ai_feedback'] = "Significant issues detected. Check the error output and revise your approach."
+                    feedback_to_add = "Significant issues detected. Check the error output and revise your approach."
+        
+        # Append feedback to test's output field
+        if feedback_to_add:
+            current_output = test.get('output', '')
+            test['output'] = current_output + '\n\n📝 AI Feedback:\n' + feedback_to_add
     
     return results
 
