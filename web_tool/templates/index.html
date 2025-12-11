@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Feedback Autograder Prep</title>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#0b1220; --muted:#94a3b8; --text:#e2e8f0; --brand:#7c3aed; --brand-2:#2563eb;
+      --ring:#1f2937; --card:#0f172a; --border:#1f2937; --accent:#111827;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;line-height:1.5;color:var(--text);background:radial-gradient(80rem 80rem at 10% 10%, #101936, #0b1023 35%, #080d1a 70%), var(--bg)}
+    .container{max-width:860px;margin:0 auto;padding:32px}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+    .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    h1{margin:0;font-size:22px}
+    .subtitle{color:var(--muted);margin:2px 0 0}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));border:1px solid var(--border);border-radius:14px;padding:20px;backdrop-filter:blur(6px)}
+    .card h2{margin:0 0 10px;font-size:16px}
+    .muted{color:var(--muted)}
+    .flash{background:#2b2a17;border:1px solid #a4902c;color:#fef9c3;padding:10px;border-radius:8px;margin-bottom:12px}
+    .upload{
+      border:1px dashed #334155;border-radius:12px;padding:18px;text-align:center;background:linear-gradient(180deg,#0c1325,#0a1120);cursor:pointer;
+    }
+    .upload:hover{cursor:pointer}
+    .upload.ready{border-color:#16a34a;background:linear-gradient(180deg,#0f1a2e,#0b1626)}
+    .hidden{display:none}
+    .ok{color:#22c55e;font-weight:600}
+    .upload.drag{border-color:var(--brand-2);background:linear-gradient(180deg,#0e172f,#0b1427)}
+    .upload input[type=file]{display:none}
+    .btn{background:linear-gradient(135deg,var(--brand-2),var(--brand));color:#fff;border:none;border-radius:10px;padding:12px 16px;cursor:pointer;font-weight:600}
+    .btn:hover{filter:brightness(1.08)}
+    .btn-secondary{background:linear-gradient(135deg,#16a34a,#059669);color:#fff;border:none;border-radius:10px;padding:12px 16px;cursor:pointer;font-weight:700}
+    .btn-secondary:hover{filter:brightness(1.08)}
+    ul{margin:8px 0 16px 20px}
+    li{margin:4px 0}
+    code{background:#0b1020;padding:2px 6px;border-radius:6px;border:1px solid #111827}
+    .steps{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .step{border:1px solid var(--border);border-radius:10px;padding:10px;background:#0b1020}
+    footer{margin-top:22px;color:var(--muted);font-size:12px;text-align:center}
+  </style>
+  </head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">AI</div>
+      <div>
+        <h1>AI Feedback Autograder Prep</h1>
+        <p class="subtitle">Drop-in augmentation for your Gradescope autograder</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Upload your autograder bundle</h2>
+        <p class="muted">We will:
+          <ul>
+            <li>Inject the AI feedback call into <code>utils.py</code></li>
+            <li>Add <code>ai_feedback.py</code> next to <code>utils.py</code></li>
+            <li>Return a new .zip ready for Gradescope</li>
+          </ul>
+        </p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for m in messages %}
+          <div class="flash">{{ m }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+        <form id="upload-form" method="post" action="/process" enctype="multipart/form-data">
+          <label for="bundle"><strong>Choose a .zip</strong></label>
+          <div id="drop" class="upload" tabindex="0" aria-label="Upload area">
+            <p id="drop-text">Drag & drop your autograder .zip here, or click to browse</p>
+            <p id="file-picked" class="hidden"><span class="ok">✔</span> Selected: <code id="file-name"></code></p>
+            <input id="bundle" name="bundle" type="file" accept=".zip" required>
+          </div>
+          <div style="margin-top:12px">
+            <button class="btn" type="submit">Generate AI-enabled autograder</button>
+          </div>
+        </form>
+        <p class="muted" style="margin-top:12px">
+          The uploaded zip must contain a <code>utils.py</code> file. Other files (e.g., <code>autograde.py</code>, <code>run_autograder</code>, <code>setup.sh</code>) are preserved.
+        </p>
+      </section>
+
+      <aside class="card">
+        <h2>What happens next</h2>
+        <div class="steps">
+          <div class="step">
+            <strong>1. Analyze</strong>
+            <p class="muted">We unpack your zip and locate <code>utils.py</code>.</p>
+          </div>
+          <div class="step">
+            <strong>2. Inject</strong>
+            <p class="muted">We insert the import and enhancer call in <code>save_results(...)</code>.</p>
+          </div>
+          <div class="step">
+            <strong>3. Add</strong>
+            <p class="muted">We place <code>ai_feedback.py</code> alongside <code>utils.py</code>.</p>
+          </div>
+          <div class="step">
+            <strong>4. Package</strong>
+            <p class="muted">We return a new .zip ready to upload to Gradescope.</p>
+          </div>
+        </div>
+        {% if ready_id %}
+        <div style="margin-top:14px">
+          <a class="btn-secondary" href="{{ url_for('download', file_id=ready_id) }}">Download finished bundle</a>
+        </div>
+        {% endif %}
+      </aside>
+    </div>
+
+    <footer>
+      This tool runs locally on the server and does not upload your bundle to any external service.
+    </footer>
+  </div>
+
+  <script>
+    const drop = document.getElementById('drop');
+    const input = document.getElementById('bundle');
+    const dropText = document.getElementById('drop-text');
+    const picked = document.getElementById('file-picked');
+    const fileName = document.getElementById('file-name');
+
+    function markPicked(file){
+      if(!file) return;
+      fileName.textContent = file.name;
+      picked.classList.remove('hidden');
+      drop.classList.add('ready');
+      dropText.textContent = 'Ready to generate with: ' + file.name;
+    }
+
+    drop.addEventListener('click', () => input.click());
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('drag'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+    drop.addEventListener('drop', (e) => {
+      e.preventDefault(); drop.classList.remove('drag');
+      const file = e.dataTransfer.files[0];
+      if (file && file.name.toLowerCase().endsWith('.zip')) {
+        input.files = e.dataTransfer.files;
+        markPicked(file);
+      } else {
+        alert('Please drop a .zip file.');
+      }
+    });
+
+    input.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if(f){ markPicked(f); }
+    });
+  </script>
+</body>
+</html>
+
+

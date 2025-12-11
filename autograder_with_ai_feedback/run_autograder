@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+autograder_dir=${1:-/autograder}
+
+cd $autograder_dir/source
+python3.10 autograde.py $autograder_dir
