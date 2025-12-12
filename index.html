@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Feedback Autograder Prep</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    // Verify JSZip loads
+    window.addEventListener('load', function() {
+      if (typeof JSZip === 'undefined') {
+        console.error('JSZip failed to load!');
+        document.body.innerHTML = '<div style="padding: 20px; color: red; font-family: Arial;"><h1>Error: JSZip Library Failed to Load</h1><p>Please check your internet connection and refresh the page.</p><p>JSZip is required for this tool to work.</p></div>';
+      } else {
+        console.log('JSZip loaded successfully');
+      }
+    });
+  </script>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#0b1220; --muted:#94a3b8; --text:#e2e8f0; --brand:#7c3aed; --brand-2:#2563eb;
+      --ring:#1f2937; --card:#0f172a; --border:#1f2937; --accent:#111827;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;line-height:1.5;color:var(--text);background:radial-gradient(80rem 80rem at 10% 10%, #101936, #0b1023 35%, #080d1a 70%), var(--bg)}
+    .container{max-width:860px;margin:0 auto;padding:32px}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+    .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    h1{margin:0;font-size:22px}
+    .subtitle{color:var(--muted);margin:2px 0 0}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01));border:1px solid var(--border);border-radius:14px;padding:20px;backdrop-filter:blur(6px)}
+    .card h2{margin:0 0 10px;font-size:16px}
+    .muted{color:var(--muted)}
+    .flash{background:#2b2a17;border:1px solid #a4902c;color:#fef9c3;padding:10px;border-radius:8px;margin-bottom:12px}
+    .flash.error{background:#2b1717;border-color:#a42c2c;color:#fec3c3}
+    .flash.success{background:#172b17;border-color:#2ca42c;color:#c3fec3}
+    .upload{
+      border:1px dashed #334155;border-radius:12px;padding:18px;text-align:center;background:linear-gradient(180deg,#0c1325,#0a1120);cursor:pointer;
+    }
+    .upload:hover{cursor:pointer}
+    .upload.ready{border-color:#16a34a;background:linear-gradient(180deg,#0f1a2e,#0b1626)}
+    .upload.processing{border-color:var(--brand-2);background:linear-gradient(180deg,#0e172f,#0b1427)}
+    .hidden{display:none}
+    .ok{color:#22c55e;font-weight:600}
+    .upload.drag{border-color:var(--brand-2);background:linear-gradient(180deg,#0e172f,#0b1427)}
+    .btn{background:linear-gradient(135deg,var(--brand-2),var(--brand));color:#fff;border:none;border-radius:10px;padding:12px 16px;cursor:pointer;font-weight:600}
+    .btn:hover{filter:brightness(1.08)}
+    .btn:disabled{opacity:0.5;cursor:not-allowed}
+    .btn-secondary{background:linear-gradient(135deg,#16a34a,#059669);color:#fff;border:none;border-radius:10px;padding:12px 16px;cursor:pointer;font-weight:700}
+    .btn-secondary:hover{filter:brightness(1.08)}
+    ul{margin:8px 0 16px 20px}
+    li{margin:4px 0}
+    code{background:#0b1020;padding:2px 6px;border-radius:6px;border:1px solid #111827}
+    .steps{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .step{border:1px solid var(--border);border-radius:10px;padding:10px;background:#0b1020}
+    footer{margin-top:22px;color:var(--muted);font-size:12px;text-align:center}
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite;margin-right:8px;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">AI</div>
+      <div>
+        <h1>AI Feedback Autograder Prep</h1>
+        <p class="subtitle">Drop-in augmentation for your Gradescope autograder</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Upload your autograder bundle</h2>
+        <p class="muted">We will:
+          <ul>
+            <li>Inject the AI feedback call into <code>utils.py</code></li>
+            <li>Add <code>ai_feedback.py</code> next to <code>utils.py</code></li>
+            <li>Return a new .zip ready for Gradescope</li>
+          </ul>
+        </p>
+
+        <div id="flash-messages"></div>
+
+        <form id="upload-form">
+          <label for="bundle"><strong>Choose a .zip</strong></label>
+          <div id="drop" class="upload" tabindex="0" aria-label="Upload area" style="min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
+            <p id="drop-text">Drag & drop your autograder .zip here, or click to browse</p>
+            <p id="file-picked" class="hidden"><span class="ok">✔</span> Selected: <code id="file-name"></code></p>
+            <input id="bundle" name="bundle" type="file" accept=".zip" required style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; font-size: 0;">
+            <p id="debug-info" style="font-size: 11px; color: #64748b; margin-top: 8px; pointer-events: none;"></p>
+          </div>
+          <div style="margin-top:16px">
+            <label for="api-key" style="display:block; margin-bottom:8px; font-weight:600;"><strong>OpenAI API Key (Optional)</strong></label>
+            <input 
+              type="password" 
+              id="api-key" 
+              name="api-key" 
+              placeholder="sk-..." 
+              style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-family:monospace; font-size:13px;"
+              autocomplete="off"
+            >
+            <p class="muted" style="margin-top:6px; font-size:12px;">
+              If provided, your API key will be embedded in the generated bundle. Leave empty to add it manually later.
+            </p>
+          </div>
+          <div style="margin-top:16px">
+            <button class="btn" type="submit" id="submit-btn">Generate AI-enabled autograder</button>
+          </div>
+        </form>
+        <p class="muted" style="margin-top:12px">
+          The uploaded zip must contain a <code>utils.py</code> file. Other files (e.g., <code>autograde.py</code>, <code>run_autograder</code>, <code>setup.sh</code>) are preserved.
+        </p>
+      </section>
+
+      <aside class="card">
+        <h2>What happens next</h2>
+        <div class="steps">
+          <div class="step">
+            <strong>1. Analyze</strong>
+            <p class="muted">We unpack your zip and locate <code>utils.py</code>.</p>
+          </div>
+          <div class="step">
+            <strong>2. Inject</strong>
+            <p class="muted">We insert the import and enhancer call in <code>save_results(...)</code>.</p>
+          </div>
+          <div class="step">
+            <strong>3. Add</strong>
+            <p class="muted">We place <code>ai_feedback.py</code> alongside <code>utils.py</code>.</p>
+          </div>
+          <div class="step">
+            <strong>4. Package</strong>
+            <p class="muted">We return a new .zip ready to upload to Gradescope.</p>
+          </div>
+        </div>
+        <div id="download-section" class="hidden" style="margin-top:14px">
+          <a class="btn-secondary" id="download-link">Download finished bundle</a>
+        </div>
+      </aside>
+    </div>
+
+    <footer>
+      This tool runs entirely in your browser. Your files never leave your device.
+    </footer>
+  </div>
+
+  <script>
+    // Embedded ai_feedback.py content
+    const AI_FEEDBACK_PY = `"""
+AI-Powered Feedback Generator for Autograders
+Drop this file into your autograder folder and add one line to utils.py
+"""
+
+import json
+import os
+import re
+from typing import Dict, List, Any
+import requests
+
+# ============== CONFIGURATION ==============
+API_KEY_HERE = ""  # Add your OpenAI API key here
+MODEL = "gpt-4o"  # or "gpt-4o-mini" for faster/cheaper
+MAX_CODE_LENGTH = 8000  # Characters to include from student code
+# ===========================================
+
+
+def enhance_results_with_ai_feedback(results: dict, autograder_dir: str) -> dict:
+    """
+    Enhance autograder results with AI-generated feedback.
+    
+    Args:
+        results: The autograder results dictionary
+        autograder_dir: Path to the autograder directory
+        
+    Returns:
+        Enhanced results dictionary with AI feedback added
+    """
+    
+    # If no API key configured, return original results
+    if not API_KEY_HERE:
+        print("AI Feedback: No API key configured. Skipping AI feedback generation.")
+        return results
+    
+    try:
+        # Get student code
+        student_code = get_student_code(autograder_dir)
+        
+        # Generate feedback via GPT-4
+        feedback = generate_feedback(results, student_code)
+        
+        # Add feedback to results
+        if feedback:
+            results = add_feedback_to_results(results, feedback)
+            
+    except Exception as e:
+        # If anything fails, just return original results
+        print(f"AI Feedback Error: {e}")
+        
+    return results
+
+
+def get_student_code(autograder_dir: str) -> str:
+    """Extract student code from submission."""
+    
+    student_code = ""
+    
+    # Try to read the converted Python file first (if it exists)
+    submission_py = os.path.join(autograder_dir, 'source', 'submission.py')
+    if os.path.exists(submission_py):
+        try:
+            with open(submission_py, 'r', encoding='utf-8') as f:
+                student_code = f.read()
+                # Clean up the code dividers
+                student_code = re.sub(r'#{50,}', '\\n', student_code)
+                return student_code[:MAX_CODE_LENGTH]
+        except:
+            pass
+    
+    # Otherwise try to read notebook files
+    submission_dir = os.path.join(autograder_dir, 'submission')
+    if os.path.exists(submission_dir):
+        for file in os.listdir(submission_dir):
+            if file.endswith('.ipynb'):
+                try:
+                    notebook_path = os.path.join(submission_dir, file)
+                    with open(notebook_path, 'r', encoding='utf-8') as f:
+                        notebook = json.load(f)
+                        
+                    # Extract code cells marked as AUTOGRADED
+                    code_cells = []
+                    for cell in notebook.get('cells', []):
+                        if cell.get('cell_type') == 'code':
+                            source = cell.get('source', [])
+                            if source and len(source) > 0:
+                                # Check if it's autograded
+                                first_line = source[0] if isinstance(source, list) else source.split('\\n')[0]
+                                if '# AUTOGRADED' in first_line or len(code_cells) == 0:
+                                    cell_text = ''.join(source) if isinstance(source, list) else source
+                                    code_cells.append(cell_text)
+                    
+                    student_code = '\\n\\n'.join(code_cells)
+                    break
+                except:
+                    continue
+    
+    # Truncate if too long
+    if len(student_code) > MAX_CODE_LENGTH:
+        student_code = student_code[:MAX_CODE_LENGTH] + "\\n\\n[Code truncated for brevity...]"
+    
+    return student_code
+
+
+def generate_feedback(results: dict, student_code: str) -> Dict[str, Any]:
+    """Generate AI feedback using GPT-4."""
+    
+    # Prepare the test results summary
+    test_summaries = []
+    for test in results.get('tests', []):
+        test_info = {
+            'name': test.get('name', 'Unknown Test'),
+            'score': test.get('score', 0),
+            'max_score': test.get('max_score', 0),
+            'output': test.get('output', '')[:500]  # Limit output length
+        }
+        test_summaries.append(test_info)
+    
+    # Create the prompt
+    prompt = create_feedback_prompt(test_summaries, student_code)
+    
+    # Make API call
+    try:
+        headers = {
+            'Authorization': f'Bearer {API_KEY_HERE}',
+            'Content-Type': 'application/json'
+        }
+        
+        data = {
+            'model': MODEL,
+            'messages': [
+                {
+                    'role': 'system',
+                    'content': """You are a direct, knowledgeable programming instructor providing feedback on student code submissions. 
+                    Give specific, actionable feedback in 2-3 sentences per graded section.
+                    Focus on what the student did wrong and how to fix it, or what they did well if they succeeded.
+                    Be direct and technical - avoid unnecessary encouragement."""
+                },
+                {
+                    'role': 'user',
+                    'content': prompt
+                }
+            ],
+            'temperature': 0.3,
+            'max_tokens': 1500
+        }
+        
+        response = requests.post(
+            'https://api.openai.com/v1/chat/completions',
+            headers=headers,
+            json=data,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            feedback_text = result['choices'][0]['message']['content']
+            return parse_feedback_response(feedback_text)
+        else:
+            print(f"AI Feedback API Error: {response.status_code} - {response.text}")
+            return {}
+            
+    except Exception as e:
+        print(f"AI Feedback Generation Error: {e}")
+        return {}
+
+
+def create_feedback_prompt(test_summaries: List[Dict], student_code: str) -> str:
+    """Create the prompt for GPT-4."""
+    
+    prompt = f"""Analyze this student's code submission and provide feedback based on the autograder results.
+
+STUDENT CODE:
+\`\`\`python
+{student_code}
+\`\`\`
+
+AUTOGRADER RESULTS:
+"""
+    
+    for test in test_summaries:
+        prompt += f"\\n{test['name']}: {test['score']}/{test['max_score']} points"
+        if test['output']:
+            prompt += f"\\nAutograder output: {test['output']}\\n"
+    
+    prompt += """
+Provide feedback in the following JSON format:
+{
+    "overall": "2-3 sentences of direct overall assessment focusing on key strengths or weaknesses",
+    "tests": {
+        "test_name_1": "2-3 sentences of specific feedback for this test",
+        "test_name_2": "2-3 sentences of specific feedback for this test"
+    }
+}
+
+For each test, analyze what the student did wrong (or right) and provide specific guidance.
+If they failed, explain the likely issue and how to fix it.
+If they succeeded, briefly note what they did well.
+Focus on the code implementation, not just restating the scores."""
+    
+    return prompt
+
+
+def parse_feedback_response(feedback_text: str) -> Dict[str, Any]:
+    """Parse the GPT-4 response into structured feedback."""
+    
+    try:
+        # Try to extract JSON from the response
+        json_match = re.search(r'\\{.*\\}', feedback_text, re.DOTALL)
+        if json_match:
+            feedback_json = json.loads(json_match.group())
+            return feedback_json
+    except:
+        pass
+    
+    # Fallback: parse as plain text
+    feedback = {}
+    
+    # Try to extract overall feedback
+    overall_match = re.search(r'overall[:\\s]+(.+?)(?:tests:|$)', feedback_text, re.IGNORECASE | re.DOTALL)
+    if overall_match:
+        feedback['overall'] = overall_match.group(1).strip()
+    
+    # Try to extract test-specific feedback
+    feedback['tests'] = {}
+    test_pattern = r'([^:]+):\\s*([^:]+?)(?=\\n[^:]+:|$)'
+    matches = re.finditer(test_pattern, feedback_text, re.MULTILINE)
+    for match in matches:
+        test_name = match.group(1).strip()
+        test_feedback = match.group(2).strip()
+        if test_name.lower() != 'overall':
+            feedback['tests'][test_name] = test_feedback
+    
+    return feedback if feedback else {'overall': 'Unable to generate detailed feedback.', 'tests': {}}
+
+
+def add_feedback_to_results(results: dict, feedback: Dict[str, Any]) -> dict:
+    """Add AI feedback to the results dictionary by appending to output fields."""
+    
+    # Add overall feedback to main output
+    if 'overall' in feedback:
+        current_output = results.get('output', '')
+        results['output'] = current_output + '\\n\\n=== AI FEEDBACK ===\\n' + feedback['overall']
+    
+    # Add test-specific feedback to each test's output
+    test_feedback = feedback.get('tests', {})
+    for test in results.get('tests', []):
+        test_name = test.get('name', '')
+        feedback_to_add = None
+        
+        # Try to find matching feedback (case-insensitive)
+        for feedback_key, feedback_value in test_feedback.items():
+            if test_name.lower() in feedback_key.lower() or feedback_key.lower() in test_name.lower():
+                feedback_to_add = feedback_value
+                break
+        
+        # If no specific feedback found, generate generic based on score
+        if not feedback_to_add:
+            score = test.get('score', 0)
+            max_score = test.get('max_score', 0)
+            if max_score > 0:
+                percentage = (score / max_score) * 100
+                if percentage >= 90:
+                    feedback_to_add = "Good implementation for this section."
+                elif percentage >= 50:
+                    feedback_to_add = "Partial credit earned. Review the test requirements and error messages."
+                else:
+                    feedback_to_add = "Significant issues detected. Check the error output and revise your approach."
+        
+        # Append feedback to test's output field
+        if feedback_to_add:
+            current_output = test.get('output', '')
+            test['output'] = current_output + '\\n\\n📝 AI Feedback:\\n' + feedback_to_add
+    
+    return results
+`;
+
+    // JavaScript version of ensure_import_and_call_in_utils
+    function ensureImportAndCallInUtils(utilsText) {
+        // Locate save_results function
+        const funcMatch = utilsText.match(/def\s+save_results\s*\([^)]*\)\s*:/);
+        if (!funcMatch) {
+            return utilsText; // Can't modify safely
+        }
+
+        const startIdx = funcMatch.index + funcMatch[0].length;
+        const tail = utilsText.substring(startIdx);
+        
+        // Match a 'with open(...results.json' line
+        let openMatch = tail.match(/^([\t ]*)with\s+open\([^)]*results\s*\/\s*results\.json[^)]*\):/m);
+        let targetIndent = "    ";
+        let insertionPoint = startIdx;
+        
+        if (openMatch) {
+            targetIndent = openMatch[1];
+            insertionPoint = startIdx + openMatch.index;
+        } else {
+            // Try also matching json.dump line
+            const dumpMatch = tail.match(/^([\t ]*)json\.dump\(\s*results\s*,\s*f\b/m);
+            if (dumpMatch) {
+                targetIndent = dumpMatch[1];
+                insertionPoint = startIdx + dumpMatch.index;
+            }
+        }
+
+        // Build injection block
+        const importLine = `${targetIndent}from ai_feedback import enhance_results_with_ai_feedback\n`;
+        const callLine = `${targetIndent}results = enhance_results_with_ai_feedback(results, autograder_dir)\n`;
+
+        // Avoid duplicate insertion
+        const preview = utilsText.substring(insertionPoint, insertionPoint + 500);
+        if (preview.includes("enhance_results_with_ai_feedback(")) {
+            return utilsText;
+        }
+        
+        const updated = utilsText.substring(0, insertionPoint) + 
+                       (preview.includes("from ai_feedback import") ? "" : importLine) + 
+                       callLine + 
+                       utilsText.substring(insertionPoint);
+
+        return updated;
+    }
+
+    // Process zip file
+    async function processZipFile(file) {
+        try {
+            showFlash("Processing zip file...", "info");
+            setProcessing(true);
+
+            // Store original filename for download
+            const originalName = file.name;
+            const nameWithoutExt = originalName.replace(/\.zip$/i, '');
+            const downloadName = `${nameWithoutExt}_ai_feedback.zip`;
+
+            // Read zip file
+            const zip = await JSZip.loadAsync(file);
+            
+            // Find utils.py
+            let utilsPath = null;
+            for (const path in zip.files) {
+                if (path.endsWith('utils.py')) {
+                    utilsPath = path;
+                    break;
+                }
+            }
+
+            if (!utilsPath) {
+                throw new Error("Could not find utils.py in the uploaded zip.");
+            }
+
+            // Read and modify utils.py
+            const utilsContent = await zip.file(utilsPath).async('string');
+            const modifiedUtils = ensureImportAndCallInUtils(utilsContent);
+            zip.file(utilsPath, modifiedUtils);
+
+            // Determine directory for ai_feedback.py (same as utils.py)
+            const utilsDir = utilsPath.substring(0, utilsPath.lastIndexOf('/') + 1);
+            const aiFeedbackPath = utilsDir + 'ai_feedback.py';
+
+            // Get API key from input and replace in AI_FEEDBACK_PY
+            const apiKeyInput = document.getElementById('api-key');
+            let aiFeedbackContent = AI_FEEDBACK_PY;
+            if (apiKeyInput && apiKeyInput.value.trim()) {
+                const apiKey = apiKeyInput.value.trim();
+                // Escape quotes in API key to prevent injection
+                const escapedApiKey = apiKey.replace(/"/g, '\\"');
+                // Replace the empty API_KEY_HERE with the user's key
+                aiFeedbackContent = aiFeedbackContent.replace(
+                    /API_KEY_HERE = ""/,
+                    `API_KEY_HERE = "${escapedApiKey}"`
+                );
+            }
+
+            // Add ai_feedback.py
+            zip.file(aiFeedbackPath, aiFeedbackContent);
+
+            // Generate new zip
+            const blob = await zip.generateAsync({type: 'blob', compression: 'DEFLATE'});
+            
+            // Create download link with custom filename
+            const url = URL.createObjectURL(blob);
+            const downloadLink = document.getElementById('download-link');
+            downloadLink.href = url;
+            downloadLink.download = downloadName;
+            document.getElementById('download-section').classList.remove('hidden');
+            
+            showFlash("Your bundle is ready! Click the download button.", "success");
+            setProcessing(false);
+            
+            // Clear API key input for security (reuse variable from above scope)
+            if (apiKeyInput) {
+                apiKeyInput.value = '';
+            }
+        } catch (error) {
+            showFlash(`Error: ${error.message}`, "error");
+            setProcessing(false);
+        }
+    }
+
+    // UI helpers
+    function showFlash(message, type = "info") {
+        const flashDiv = document.getElementById('flash-messages');
+        if (!flashDiv) {
+            console.error('Flash messages div not found');
+            alert(message); // Fallback alert
+            return;
+        }
+        const flash = document.createElement('div');
+        flash.className = `flash ${type}`;
+        flash.textContent = message;
+        flashDiv.innerHTML = '';
+        flashDiv.appendChild(flash);
+        setTimeout(() => flash.remove(), 5000);
+    }
+
+    function setProcessing(processing) {
+        const btn = document.getElementById('submit-btn');
+        const drop = document.getElementById('drop');
+        if (processing) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Processing...';
+            drop.classList.add('processing');
+        } else {
+            btn.disabled = false;
+            btn.textContent = 'Generate AI-enabled autograder';
+            drop.classList.remove('processing');
+        }
+    }
+
+    // Wait for DOM and JSZip to be ready
+    window.addEventListener('load', function() {
+        // Check if JSZip is loaded
+        if (typeof JSZip === 'undefined') {
+            console.error('JSZip not loaded');
+            showFlash('Error: JSZip library failed to load. Please check your internet connection.', 'error');
+            return;
+        }
+        console.log('JSZip loaded successfully');
+
+        // Event handlers
+        const drop = document.getElementById('drop');
+        const input = document.getElementById('bundle');
+        const dropText = document.getElementById('drop-text');
+        const picked = document.getElementById('file-picked');
+        const fileName = document.getElementById('file-name');
+        const form = document.getElementById('upload-form');
+
+        if (!drop || !input || !form) {
+            showFlash('Error: Page elements not found.', 'error');
+            return;
+        }
+
+        // Debug info
+        const debugInfo = document.getElementById('debug-info');
+        if (debugInfo) {
+            debugInfo.textContent = 'Ready - JSZip loaded ✓';
+        }
+        
+        // Test drag events
+        console.log('Setting up drag and drop handlers...');
+        console.log('Drop element:', drop);
+        console.log('Input element:', input);
+        console.log('Input type:', input.type);
+        console.log('Input accept:', input.accept);
+        
+        // Test if input click works
+        console.log('Testing input.click()...');
+        try {
+            // Don't actually click, just verify the method exists
+            if (typeof input.click === 'function') {
+                console.log('✓ input.click() is available');
+            } else {
+                console.error('✗ input.click() is NOT a function');
+            }
+        } catch (err) {
+            console.error('Error testing input:', err);
+        }
+
+        function markPicked(file) {
+            if (!file) return;
+            fileName.textContent = file.name;
+            picked.classList.remove('hidden');
+            drop.classList.add('ready');
+            dropText.textContent = 'Ready to generate with: ' + file.name;
+            
+        }
+
+        drop.addEventListener('click', (e) => {
+            console.log('Drop area clicked!');
+            e.preventDefault();
+
+            input.value = "";
+            input.click();
+        });
+
+        
+        // Also make sure input itself works
+        input.addEventListener('click', (e) => {
+            console.log('Input clicked directly');
+            e.stopPropagation();
+        });
+        drop.addEventListener('dragover', (e) => { 
+            e.preventDefault(); 
+            e.stopPropagation();
+            drop.classList.add('drag');
+            debugInfo.textContent = 'Drag over detected - drop to upload';
+            console.log('Drag over event');
+        });
+        drop.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            drop.classList.remove('drag');
+        });
+        drop.addEventListener('drop', (e) => {
+            e.preventDefault(); 
+            e.stopPropagation();
+            drop.classList.remove('drag');
+            console.log('Drop event fired', e.dataTransfer.files);
+            debugInfo.textContent = 'Processing drop...';
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.toLowerCase().endsWith('.zip')) {
+                // Create a new FileList-like object for the input
+                try {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    input.files = dataTransfer.files;
+                    markPicked(file);
+                    console.log('File picked:', file.name);
+                } catch (err) {
+                    // Fallback for older browsers
+                    console.log('Using fallback method');
+                    markPicked(file);
+                    // Store file for form submission
+                    input._droppedFile = file;
+                }
+            } else {
+                showFlash('Please drop a .zip file.', 'error');
+            }
+        });
+
+        input.addEventListener('change', (e) => {
+            console.log('CHANGE fired:', e.target.files);
+
+            const f = e.target.files && e.target.files[0];
+            if (f) { markPicked(f); }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            let file = input.files[0];
+            // Fallback for dropped files
+            if (!file && input._droppedFile) {
+                file = input._droppedFile;
+            }
+            if (!file) {
+                showFlash('Please select a zip file first.', 'error');
+                return;
+            }
+            await processZipFile(file);
+        });
+    });
+  </script>
+</body>
+</html>
+
